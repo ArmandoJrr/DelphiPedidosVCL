@@ -1,0 +1,145 @@
+unit uclass.pedido;
+
+interface
+
+uses
+  uDmPedido, System.SysUtils, uPedido;
+
+  Type
+  TPedido = class
+  nro_pedido  : Integer;
+  dt_emiss    : TDateTime;
+  cod_cliente : Integer;
+  vl_total    : Double;
+  private
+    FEmEdicao: Boolean;
+
+  public
+    procedure NovoPedido;
+    property Edicao : Boolean read FEmEdicao write FEmEdicao;
+    function ExcluirProdutos(codPedido: Integer): String;
+    function CarregarPedido (codPedido : Integer) : String;
+    function GravarPedidoCompleto : String;
+    function ExcluirPedido (codPedido: Integer): String;
+  end;
+
+implementation
+
+{ TPedido }
+
+function TPedido.CarregarPedido(codPedido: Integer) : String;
+begin
+ with DmPedido.QryDetalhePedido do
+ begin
+   CLose;
+   SQL.Clear;
+   SQL.Add('SELECT  c.Nome, p.* FROM dados_gerais_pedidos p '+
+           'inner join clientes c on (p.Cod_cliente = c.Codigo) '+
+           'where p.Nro_pedido = :nro_pedido');
+   ParamByName('nro_pedido').AsInteger := codPedido;
+   Open;
+ end;
+
+ if DmPedido.QryDetalhePedido.RecordCount > 0 then
+ begin
+   FrmPedido.DBEditCodPedido.Text     := inttoStr(DmPedido.QryDetalhePedidonro_pedido.AsInteger);
+   FrmPedido.DBEditDtEmiss.Text       := DatetoStr(DmPedido.QryDetalhePedidoDt_emiss.AsDateTime);
+   FrmPedido.EditCodCliente.Text      := inttoStr(DmPedido.QryDetalhePedidoCod_cliente.AsInteger);
+   FrmPedido.EditNomeCli.Text         := DmPedido.QryDetalhePedidoNome.AsString;
+   FrmPedido.LblTotPedido.Caption     := 'Total Pedido: '+FloatToStr(DmPedido.QryDetalhePedidoValorTot.AsFloat);
+
+   Result := 'OK';
+ end
+ else
+  Result  := 'Erro';
+end;
+
+function TPedido.ExcluirProdutos(codPedido: Integer): String;
+begin
+ with DmPedido.QryDetalhePedido do
+ begin
+   try
+     CLose;
+     SQL.Clear;
+     SQL.Add('Start transaction;');
+     SQL.Add('DELETE FROM PROD_PEDIDO WHERE NRO_PEDIDO = :NRO_PEDIDO');
+     ParamByName('nro_pedido').AsInteger := codPedido;
+     ExecSQL;
+
+     CLose;
+     SQL.Clear;
+     SQL.Add('COMMIT;');
+     ExecSQL;
+
+     result := 'OK';
+   Except
+     CLose;
+     SQL.Clear;
+     SQL.Add('ROLLBACK;');
+     ExecSQL;
+
+     result := 'Erro';
+   end;
+ end;
+end;
+
+function TPedido.ExcluirPedido(codPedido: Integer): String;
+begin
+ with DmPedido.QryDetalhePedido do
+ begin
+   try
+     CLose;
+     SQL.Clear;
+     SQL.Add('Start transaction;');
+     SQL.Add('DELETE FROM DADOS_GERAIS_PEDIDOS WHERE NRO_PEDIDO = :NRO_PEDIDO');
+     ParamByName('nro_pedido').AsInteger := codPedido;
+     ExecSQL;
+
+     CLose;
+     SQL.Clear;
+     SQL.Add('COMMIT;');
+     ExecSQL;
+
+     result := 'OK';
+   Except
+     CLose;
+     SQL.Clear;
+     SQL.Add('ROLLBACK;');
+     ExecSQL;
+
+     result := 'Erro';
+   end;
+ end;
+end;
+
+function TPedido.GravarPedidoCompleto: String;
+begin
+  try
+    DmPedido.QryPedido.Close;
+    DmPedido.QryPedido.SQL.Clear;
+    DmPedido.QryPedido.SQL.Text := 'Select dados_gerais_pedidos where nro_pedido = :nro_pedido';
+    DmPedido.QryPedido.Open;
+
+    DmPedido.QryPedido.Edit;
+    DmPedido.QryPedidoCod_cliente.AsInteger := StrtoInt(FrmPedido.EditCodCliente.Text);
+    DmPedido.QryPedidoValorTot.AsFloat      := StrtoFloat(FrmPedido.SoNumeros(FrmPedido.EditTotPedido.Text));
+    DmPedido.QryPedido.Post;
+
+    Result := 'OK';
+  Except
+    Result := 'Erro';
+  end;
+end;
+
+procedure TPedido.NovoPedido;
+begin
+  DmPedido.QryPedido.Active := True;
+
+  DmPedido.QryPedido.Append;
+  DmPedido.QryPedidoDt_emiss.AsDateTime := Now;
+  DmPedido.QryPedidoCod_cliente.AsInteger := 1;
+  DmPedido.QryPedidoValorTot.AsFloat      := 0;
+  DmPedido.QryPedido.Post;
+end;
+
+end.

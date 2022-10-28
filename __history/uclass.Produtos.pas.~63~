@@ -1,0 +1,148 @@
+unit uclass.Produtos;
+
+interface
+
+uses
+FireDAC.Comp.Client;
+
+Type
+  TProduto = class
+
+  private
+    FConexao   : TFDConnection;
+    FNome      : String;
+    FValorUnit : Double;
+    FQtd: Integer;
+    FCodProd: Integer;
+    FQtdProdGrid: Integer;
+  public
+    property Nome : String read FNome write FNome;
+    property ValorUnit : Double read FValorUnit write FValorUnit;
+    property CodProd : Integer read FCodProd write FCodProd;
+    property Qtd : Integer read FQtd write FQtd;
+    property QtdProdGrid : Integer read FQtdProdGrid write FQtdProdGrid;
+
+    destructor Destroy; Override;
+    procedure CarregarProdutos(pedido : integer);
+    function  CarregarNomeProduto(cod : integer ) : String;
+    function  InserirEditar(Tipo: String) : Boolean;
+    procedure InserirProdGrid;
+
+end;
+
+implementation
+
+{ TProduto }
+
+uses uDmPedido;
+
+function TProduto.CarregarNomeProduto(cod: integer): String;
+var
+Qry : TFDQuery;
+begin
+ Qry := TFdQuery.Create(nil);
+
+ with Qry do
+ begin
+   Connection := DmPedido.Conn;
+   Close;
+   SQL.Clear;
+   SQL.Text := 'select nome from produtos where codigo = :codigo';
+   ParamByName('codigo').AsInteger := cod;
+   Open;
+ end;
+
+ result := Qry.FieldByName('nome').AsString;
+end;
+
+destructor TProduto.Destroy;
+begin
+
+  inherited;
+end;
+
+function TProduto.inserirEditar(Tipo : String) : Boolean;
+begin
+  if Tipo = 'Inserir' then
+  begin
+    try
+      DmPedido.QrySalvarProdutos.Close;
+      DmPedido.QrySalvarProdutos.Sql.Clear;
+      DmPedido.QrySalvarProdutos.Sql.Add('Start transaction;');
+      DmPedido.QrySalvarProdutos.Sql.Add('INSERT INTO prod_pedido (nro_pedido,cod_produto,qtd,vl_unit,vl_total) '+
+                                      'VALUES (:nro_pedido,:cod_produto,:qtd,:vl_unit,:vl_total)');
+      DmPedido.QrySalvarProdutos.ParamByName('nro_pedido').AsInteger  := DmPedido.QryPedidoNro_pedido.AsInteger;
+      DmPedido.QrySalvarProdutos.ParamByName('cod_produto').AsInteger := FCodProd;
+      DmPedido.QrySalvarProdutos.ParamByName('qtd').AsInteger         := FQtd;
+      DmPedido.QrySalvarProdutos.ParamByName('vl_unit').AsFloat       := FValorUnit;
+      DmPedido.QrySalvarProdutos.ParamByName('vl_total').AsFloat      := FQtd  * FValorUnit;
+      DmPedido.QrySalvarProdutos.ExecSQL;
+
+      DmPedido.QrySalvarProdutos.Close;
+      DmPedido.QrySalvarProdutos.Sql.Clear;
+      DmPedido.QrySalvarProdutos.Sql.Add('COMMIT;');
+      DmPedido.QrySalvarProdutos.ExecSQL;
+    Except
+      DmPedido.QrySalvarProdutos.Close;
+      DmPedido.QrySalvarProdutos.Sql.Clear;
+      DmPedido.QrySalvarProdutos.Sql.Add('ROLLBACK;');
+      DmPedido.QrySalvarProdutos.ExecSQL;
+    end;
+  end
+  else
+  begin
+    try
+      DmPedido.QrySalvarProdutos.Close;
+      DmPedido.QrySalvarProdutos.Sql.Clear;
+      DmPedido.QrySalvarProdutos.Sql.Add('Start transaction;');
+      DmPedido.QrySalvarProdutos.Sql.Add('UPDATE INTO prod_pedido SET cod_produto = :cod_produto, '+
+      'qtd = :qtd,vl_unit = :vl_unit,vl_total = :vl_total where prod_pedido.nro_pedido = :pedido and  '+
+      'prod_pedido.cod_produto = :produto');
+
+      DmPedido.QrySalvarProdutos.ParamByName('cod_produto').AsInteger := FCodProd;
+      DmPedido.QrySalvarProdutos.ParamByName('qtd').AsInteger         := FQtd;
+      DmPedido.QrySalvarProdutos.ParamByName('vl_unit').AsFloat       := FValorUnit;
+      DmPedido.QrySalvarProdutos.ParamByName('vl_total').AsFloat      := FQtd  * FValorUnit;
+      DmPedido.QrySalvarProdutos.ParamByName('pedido').AsInteger      := DmPedido.QryPedidoNro_pedido.AsInteger;
+      DmPedido.QrySalvarProdutos.ParamByName('produto').AsInteger     := FCodProd;
+      DmPedido.QrySalvarProdutos.ExecSQL;
+
+      DmPedido.QrySalvarProdutos.Close;
+      DmPedido.QrySalvarProdutos.Sql.Clear;
+      DmPedido.QrySalvarProdutos.Sql.Add('COMMIT;');
+      DmPedido.QrySalvarProdutos.ExecSQL;
+    Except
+      DmPedido.QrySalvarProdutos.Close;
+      DmPedido.QrySalvarProdutos.Sql.Clear;
+      DmPedido.QrySalvarProdutos.Sql.Add('ROLLBACK;');
+      DmPedido.QrySalvarProdutos.ExecSQL;
+    end;
+  end;
+end;
+
+procedure TProduto.CarregarProdutos(pedido : integer);
+begin
+  DmPedido.QryInserirProd.Close;
+
+  DmPedido.Cdsprodutosvenda.Close;
+  DmPedido.Cdsprodutosvenda.FetchParams;
+  DmPedido.Cdsprodutosvenda.CommandText  := 'select * from prod_pedido where nro_pedido = :pedido';
+  DmPedido.Cdsprodutosvenda.Params.ParamByName('pedido').AsInteger := pedido;
+  DmPedido.Cdsprodutosvenda.Open;
+
+  DmPedido.Cdsprodutosvenda.RecordCount;
+end;
+
+procedure TProduto.InserirProdGrid;
+begin
+  DmPedido.Cdsprodutosvenda.Insert;
+  DmPedido.CdsprodutosvendaSequencia.AsInteger   := DmPedido.Cdsprodutosvenda.recordCount + 1;
+  DmPedido.Cdsprodutosvendanro_pedido.AsInteger  := DmPedido.QryPedidoNro_pedido.AsInteger;
+  DmPedido.Cdsprodutosvendacod_produto.AsInteger := FCodProd;
+  DmPedido.Cdsprodutosvendaqtd.AsInteger         := FQtd;
+  DmPedido.Cdsprodutosvendavl_unit.AsFloat       := FValorUnit;
+  DmPedido.Cdsprodutosvendavl_total.AsFloat      := FQtd  * FValorUnit;
+  DmPedido.Cdsprodutosvenda.Post;
+end;
+
+end.

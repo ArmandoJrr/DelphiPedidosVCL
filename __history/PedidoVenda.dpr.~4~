@@ -1,0 +1,18 @@
+program PedidoVenda;
+
+uses
+  Vcl.Forms,
+  uPedido in 'uPedido.pas' {FrmPedido},
+  uclass.Clientes in 'uclass.Clientes.pas',
+  uclass.Produtos in 'uclass.Produtos.pas',
+  uDmPedido in 'uDmPedido.pas' {DmPedido: TDataModule};
+
+{$R *.res}
+
+begin
+  Application.Initialize;
+  Application.MainFormOnTaskbar := True;
+  Application.CreateForm(TFrmPedido, FrmPedido);
+  Application.CreateForm(TDmPedido, DmPedido);
+  Application.Run;
+end.

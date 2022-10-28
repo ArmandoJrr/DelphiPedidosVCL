@@ -1,0 +1,51 @@
+unit uclass.Clientes;
+
+interface
+
+uses
+FireDAC.Comp.Client, uDmPedido;
+
+type
+ TCliente = Class
+ FConexao : TFDConnection;
+ Fcodigo   : integer;
+ Fnome     : String;
+ Fcidade   : String;
+ FUF       : String;
+
+ private
+ //
+ public
+   property Conexao : TFdConnection read FConexao write FConexao;
+   property Codigo  : Integer read Fcodigo write Fcodigo;
+   property Nome    : String read Fnome write Fnome;
+   property Cidade : String read Fcidade write Fcidade;
+   property UF : String read FUF write FUF;
+
+   function CarregarNome(cod : integer) : String;
+ End;
+
+implementation
+
+{ TCliente }
+
+function TCliente.CarregarNome(cod: integer): String;
+var
+Qry : TFDQuery;
+begin
+ Qry := TFdQuery.Create(nil);
+
+ with Qry do
+ begin
+   Connection := DmPedido.Conn;
+   Close;
+   SQL.Clear;
+   SQL.Text := 'select nome from clientes where codigo = :codigo';
+   ParamByName('codigo').AsInteger := cod;
+   Open;
+ end;
+
+ result := Qry.FieldByName('nome').AsString;
+end;
+
+end.
